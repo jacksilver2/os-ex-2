@@ -11,9 +11,6 @@ class id_handler
 {
 public:
 
-	int id_counter;
-	std::priority_queue<int, std::vector<int>, std::greater<int> > ids_pq;
-
 	id_handler();
 
 	virtual ~id_handler();
@@ -21,6 +18,11 @@ public:
 	int get_id();
 
 	int recycle_id(int tid);
+
+private:
+
+	int id_counter;
+	std::priority_queue<int, std::vector<int>, std::greater<int> > ids_pq;
 
 };
 
