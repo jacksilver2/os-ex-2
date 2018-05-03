@@ -7,6 +7,6 @@
 
 #define SOMECONST 9000
 
-//
+
 
 #endif //EX2_UTILS_H
