@@ -6,7 +6,7 @@
 #define EX2_STATE_H
 
 
-enum state
+enum State
 {
 	READY = 0,
 	RUNNING = 1,

@@ -5,25 +5,28 @@
 
 #include <vector>
 #include <queue>
+
 using namespace std;
 
-class id_handler
+class ID_handler
 {
 public:
 
-	id_handler();
+	ID_handler();
 
-	virtual ~id_handler();
+	virtual ~ID_handler();
 
 	int get_id();
 
 	int recycle_id(int tid);
 
+	void print_ids_pq();
+
 private:
 
 	int id_counter;
 	std::priority_queue<int, std::vector<int>, std::greater<int> > ids_pq;
-
+	bool recycled_ids[100] = {false}; //we might get rid of this eventually.
 };
 
 
