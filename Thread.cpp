@@ -59,6 +59,7 @@ void Thread::setThread(int id, void (*f)(void))
 	address_t sp, pc;
 	_id = id;
 	_node = new ThreadNode{id, nullptr, nullptr};
+	//todo ThreadNode is a struct. Should be class?
 	if (id)
 	{
 		_state = READY;
@@ -94,7 +95,7 @@ void Thread::run()
 	 * saves the threads current environment
 	 * @return -1 if just saved, otherwise if came by jump returns id of thread we came from
 	 */
-int save()
+int Thread::save()
 {
 	return sigsetjmp(_env, 1) - 1;
 }
@@ -126,10 +127,11 @@ void Thread::resume()
 /**
  * move thread to sync state
  */
-void Thread::sync()
+void Thread::sync(int id)
 {
 	assert(_state == RUNNING);
 	_state = SYNCED;
+	_waitingToSyncWith = id;
 }
 
 /**
@@ -155,4 +157,14 @@ void Thread::terminate()
 	_node = nullptr;
 	delete _env;
 	_env = nullptr;
+}
+
+bool Thread::isSyncing()
+{
+	return _waitingToSyncWith > 0;
+}
+
+void Thread::setSyncingFlag(bool flag)
+{
+	_waitingToSyncWith = flag;
 }

@@ -11,7 +11,7 @@ using namespace std;
  */
 ID_handler::ID_handler()
 {
-	id_counter = INITIAL_ID;
+	_idCounter = INITIAL_ID;
 };
 
 /**
@@ -30,7 +30,7 @@ int ID_handler::get_id()
 	int ret;
 	if (ID_handler::ids_pq.empty())
 	{
-		ret = ++ID_handler::id_counter;
+		ret = ++ID_handler::_idCounter;
 	}
 	else
 	{
@@ -57,7 +57,7 @@ int ID_handler::recycle_id(int tid)
 	//make sure an non-provided id is not being recycled
 	//make sure id is not recycled twice
 	//make sure 0 is not being recycled
-	assert(tid <= id_counter);
+	assert(tid <= _idCounter);
 	assert(!recycled_ids[tid]);
 	assert(tid != 0);
 	recycled_ids[tid] = true;
@@ -89,4 +89,9 @@ void ID_handler::print_ids_pq()
 		ids_pq.push(p);
 		tmp.pop();
 	}
+}
+
+int ID_handler::get_counter()
+{
+	return _idCounter;
 }

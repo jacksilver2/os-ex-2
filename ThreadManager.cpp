@@ -9,20 +9,21 @@
  *
  * @return 0 if thread associated with id is in threadList
  */
-bool ThreadManager::isIdValid(int tid)
+bool ThreadManager::idIsValid(int tid)
 {
 	//todo fix validity logic in id handler
 	return tid < _threads.size();
 }
 
 /**
- * moves thread with id tid to readyList
+ * pushes thread with id tid to readyList
  * @return 0 on success -1 on failure
  */
-int ThreadManager::moveToReadyList(int tid)
+void ThreadManager::pushToReadyList(int tid)
 {
-	assert();
+	assert(idIsValid(tid));
 	_readyList.push(_threads[tid].getNode());
+
 }
 
 /**
@@ -80,7 +81,7 @@ int ThreadManager::block(int id)
 		//todo add error print: "Attempting to block main thread"
 		return -1;
 	}
-	if (isIdValid(id))
+	if (!idIsValid(id))
 	{
 		//todo add error: "Attempting to block non-existent id"
 		return -1;
@@ -114,16 +115,78 @@ int ThreadManager::block(int id)
 
 int ThreadManager::resume(int id)
 {
+	if (!idIsValid(id))
+	{
+		//todo add error: "Attempting to resume non-existent id"
+		return -1;
+	}
 	assert(id < 0);
 	Thread cur_thread = _threads[id];
 	state_t state = cur_thread.getState();
 	if (state == BLOCKED)
 	{
-		//need to make sure that this thread is not synced
-		//todo "synced" should be some kind of flag perhaps because a thread can be
-		// blocked and synced at the same time...
-		cur_thread.run();
+		if (!cur_thread.isSyncing())
+		{
+			//pushToReadyList(id);
+			assert(idIsValid(id));
+			_readyList.push(_threads[id].getNode());
+		}
+		//needed to make sure that this thread is not synced
+		//added "_waitingToSyncWith" field
+
 	}
+	if (state == RUNNING || state == READY)
+	{
+		//has no effect according to pdf.
+	}
+	return 0;
+}
+
+/**
+	 * assert state is running
+	 * sync thread, add it to sync list of id and schedule
+	 * handle errors as in pdf
+	 * @return 0, on success. -1 on error
+	 */
+int ThreadManager::sync(int id)
+{
+	if (!idIsValid(id))
+	{
+		//todo add error: "Attempting to sync non-existent id"
+		return -1;
+	}
+	if (id == 0)
+	{
+		//todo add error: "Attampting to sync with main thread
+		return -1;
+	}
+	if (id == _runningId)
+	{
+		//todo add error: "Attampting to sync with self
+		return -1;
+	}
+	Thread runningThread = _threads[_runningId];
+	Thread threadToSyncTo = _threads[id];
+	assert(runningThread.getState() == RUNNING);
+	runningThread.sync(id);
+	threadToSyncTo.addToSyncList(runningThread.getNode());
+	runningThread.block();
+	schedule();
+
+
+	return 0;
+}
+
+/**
+ * assert not synced meaning that the thread being terminated is not synced!!!! we are supposed to suport it but it's problematic at the moment
+ * if state is ready then remove from ready list, if running schedule.
+ * before scheduling(if needed) get sync list of id and concat it to ready list
+ * teminate thread and only then schedule(if needed)
+ * handle errors as in pdf
+ * @return 0, on success. -1 on error
+ */
+int ThreadManager::terminate(int id)
+{
 	return 0;
 }
 

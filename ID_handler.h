@@ -22,9 +22,11 @@ public:
 
 	void print_ids_pq();
 
+	int get_counter();
+
 private:
 
-	int id_counter;
+	int _idCounter;
 	std::priority_queue<int, std::vector<int>, std::greater<int> > ids_pq;
 	bool recycled_ids[100] = {false}; //we might get rid of this eventually.
 };

@@ -84,8 +84,10 @@ public:
 
 	/**
 	 * move thread to sync state
+	 * AND
+	 * update "watingToSyncWith" field to be id
 	 */
-	void sync();
+	void sync(int id);
 
 	/**
 	 * adds node to sync list
@@ -98,13 +100,22 @@ public:
 	 */
 	void terminate();
 
+	bool isSyncing();
+
+	void setSyncingFlag(bool flag);
 private:
 	sigjmp_buf _env;
 	state_t _state;
 	ThreadNode *_node;
-	ThreadList _syncList;
+	ThreadList _syncList; //list of threads waiting for this thread
 	char *_stackPtr;
 	int _id;
 	quant_time_t _quantumsPassed;
+
+	// shmuel says: the following is my addition. Not sure needed.
+	//------------
+	int _waitingToSyncWith;
+	//if set to x then this thread is in _syncList of thread x
+	//-----------
 };
 #endif //T2_THREAD_H

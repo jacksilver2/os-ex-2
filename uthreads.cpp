@@ -17,8 +17,6 @@ using namespace std;
 #include <vector>
 #include <queue>
 
-
-
 int uthread_init(int quantum_usecs)
 {
 
