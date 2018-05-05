@@ -130,7 +130,8 @@ void Thread::resume()
 void Thread::sync(int id)
 {
 	assert(_state == RUNNING);
-	_state = SYNCED;
+	_state = SYNCED; // should not exist because when
+	// thread is synced it has state = BLOCKED !!
 	_waitingToSyncWith = id;
 }
 

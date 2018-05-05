@@ -155,14 +155,14 @@ int ThreadManager::sync(int id)
 		//todo add error: "Attempting to sync non-existent id"
 		return -1;
 	}
-	if (id == 0)
+	if (_runningId == 0)
 	{
-		//todo add error: "Attampting to sync with main thread
+		//todo add error: "main thread attempts to sync with another thread
 		return -1;
 	}
 	if (id == _runningId)
 	{
-		//todo add error: "Attampting to sync with self
+		//todo add error: "Attampting to sync with self"
 		return -1;
 	}
 	Thread runningThread = _threads[_runningId];
