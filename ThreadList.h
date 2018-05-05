@@ -5,8 +5,6 @@
 #ifndef T2_THREADLIST_H
 #define T2_THREADLIST_H
 
-#endif //T2_THREADLIST_H
-
 class ThreadList;
 
 /**
@@ -14,7 +12,7 @@ class ThreadList;
  */
 struct ThreadNode
 {
-	unsigned int id;
+	int id;
 	ThreadNode *next;
 	ThreadNode *prev;
 };
@@ -61,3 +59,5 @@ private:
 	ThreadNode *_head;
 	ThreadNode *_tail;
 };
+
+#endif //T2_THREADLIST_H
