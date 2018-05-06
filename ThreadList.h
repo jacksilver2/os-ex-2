@@ -12,6 +12,8 @@ class ThreadList;
  */
 struct ThreadNode
 {
+	ThreadNode(int i, void *pVoid, void *pVoid1);
+
 	int id;
 	ThreadNode *next;
 	ThreadNode *prev;

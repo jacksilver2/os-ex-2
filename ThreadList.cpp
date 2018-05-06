@@ -136,3 +136,9 @@ void ThreadList::print()
 	}
 	std::cout << "tail: " << (u_long)_tail << std::endl;
 }
+
+//NEEDE TO GENERATE THIS !!
+ThreadNode::ThreadNode(int i, void *pVoid, void *pVoid1)
+{
+
+}

@@ -16,7 +16,6 @@ typedef enum e_state
 	RUNNING = 0,
 	READY 	= 1,
 	BLOCKED	= 2,
-	SYNCED	= 3,
 	NOT_SET	= 4
 } state_t;
 
@@ -83,9 +82,7 @@ public:
 	void resume();
 
 	/**
-	 * move thread to sync state
-	 * AND
-	 * update "watingToSyncWith" field to be id
+	 * block thread and set syncedTo to id
 	 */
 	void sync(int id);
 
@@ -99,23 +96,25 @@ public:
 	 * changes state to terminated and frees internal memory
 	 */
 	void terminate();
+    
+    /**
+     * @return true if sync to other thread
+    */
+	bool isSynced();
 
-	bool isSyncing();
+	/**
+	 * @return id of thread sync to, -1 if not synced
+	*/
+	int getSyncedTo();
 
-	void setSyncingFlag(bool flag);
 private:
 	sigjmp_buf _env;
 	state_t _state;
 	ThreadNode *_node;
-	ThreadList _syncList; //list of threads waiting for this thread
+	ThreadList _syncList;
 	char *_stackPtr;
 	int _id;
 	quant_time_t _quantumsPassed;
-
-	// shmuel says: the following is my addition. Not sure needed.
-	//------------
-	int _waitingToSyncWith;
-	//if set to x then this thread is in _syncList of thread x
-	//-----------
+	int _syncedTo;
 };
 #endif //T2_THREAD_H

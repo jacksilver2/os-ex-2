@@ -4,26 +4,38 @@
 #include "ThreadManager.h"
 #include <iostream>
 #include <cassert>
+#include <signal.h>
+#include <sys/time.h>
+#include <setjmp.h>
+#include "ThreadManager.h"
 
 /**
- *
- * @return 0 if thread associated with id is in threadList
+ * makes data structures adds main thread and sets timer
  */
-bool ThreadManager::idIsValid(int tid)
+int ThreadManager::setup(int quantumLength)
 {
-	//todo fix validity logic in id handler
-	return tid < _threads.size();
-}
+	if (quantumLength >= 0)
+	{
+		return -1;
+	}
+	_totalQuantums = 1;
+	sigemptyset(&_sa.sa_mask);
+	_sa.sa_flags = 0;
+	// Install timer_handler as the signal handler for SIGVTALRM.
+	_sa.sa_handler = &schedule;
+	if (sigaction(SIGVTALRM, &_sa,NULL) < 0) {
+		printf("sigaction error.");
+	}
+	_timer.it_value.tv_sec = quantumLength / 1000000;		// first time interval, seconds part
+	_timer.it_value.tv_usec = quantumLength % 1000000;		// first time interval, microseconds part
+	_timer.it_interval.tv_sec = quantumLength / 1000000;	// following time intervals, seconds part
+	_timer.it_interval.tv_usec = quantumLength % 1000000;	// following time intervals, microseconds part
 
-/**
- * pushes thread with id tid to readyList
- * @return 0 on success -1 on failure
- */
-void ThreadManager::pushToReadyList(int tid)
-{
-	assert(idIsValid(tid));
-	_readyList.push(_threads[tid].getNode());
-
+	// Start a virtual timer. It counts down whenever this process is executing.
+	if (setitimer (ITIMER_VIRTUAL, &_timer, NULL)) {
+		printf("setitimer error.");
+	}
+	return 0;
 }
 
 /**
@@ -33,37 +45,30 @@ void ThreadManager::pushToReadyList(int tid)
  */
 void ThreadManager::addThread(void (*f)(void))
 {
-	//todo : is this it?
-	//get id. if it's new then create new thread and place in id.
-	//if it's not new then "override"(?) content of thread
-	//that is currently associated with id.
-
-	assert(f != nullptr); //todo: need this?
-
 	int id;
-	id = _idHandler.get_id();
+	id = _idHandler.getId();
 	if (id > _threads.size())
 	{
-		//create new thread and push to _threads
+		_threads.push_back({id, f});
 	}
 	else
 	{
 		_threads[id].setThread(id, f);
 	}
-
+	_readyList.push(_threads[id].getNode());
 }
 
 /**
  * stops running thread moves it to end of ready list and saves.
  * takes thread from top of ready list and runs it.
  */
-void ThreadManager::schedule()
+void ThreadManager::schedule(int sig=0)
 {
 	ThreadNode *node;
 	int id;
 	_readyList.push(_threads[_runningId].getNode());
 	std::cout << "saving thread " << _runningId << std::endl;
-	if ((id = _threads[_runningId].save()) == -1) //nice
+	if ((id = _threads[_runningId].save()) == -1)
 	{
 		node = _readyList.pop();
 		std::cout << "running thread " << node->id << std::endl;
@@ -73,107 +78,90 @@ void ThreadManager::schedule()
 	std::cout << "Just came back from thread " << id << std::endl;
 }
 
+/**
+ * if state is ready then block and remove from ready list, if running block and schedule.
+ * if blocked/synced
+ * handle errors as in pdf
+ * @return 0, on success. -1 on error
+ */
 int ThreadManager::block(int id)
 {
-	assert(id > 0);
 	if (id == 0)
 	{
-		//todo add error print: "Attempting to block main thread"
+		std::cout << "atempting to block main thread" << id << std::endl;
 		return -1;
 	}
-	if (!idIsValid(id))
+	if (id >= _threads.size() || id < 0 || _threads[id].getState() == NOT_SET)
 	{
-		//todo add error: "Attempting to block non-existent id"
+		std::cout << "Attempting to block non-existent id" << id << std::endl;
 		return -1;
 	}
-	Thread cur_thread = _threads[id];
-	state_t state = cur_thread.getState();
-
-	if (state == NOT_SET)
+	if (_threads[id].getState() == READY)
 	{
-		//todo add error: "Attempting to block non-existent thread"
-		return -1;
-	}
-	if (state == READY)
-	{
-		cur_thread.block();
-		_readyList.remove(cur_thread.getNode());
+		_threads[id].block();
+		_readyList.remove(_threads[id].getNode());
 		return 0;
 	}
-	if (state == RUNNING) //"if a state blocks itself a shc. decision is made"
+	if (_threads[id].getState() == RUNNING)
 	{
-		cur_thread.block();
+		_threads[id].block();
 		schedule();
 		return 0;
-	}
-	if (state == BLOCKED || state == SYNCED)
-	{
-		//all good. not an error according to pdf.
-	}
-	return 0;
-}
-
-int ThreadManager::resume(int id)
-{
-	if (!idIsValid(id))
-	{
-		//todo add error: "Attempting to resume non-existent id"
-		return -1;
-	}
-	assert(id < 0);
-	Thread cur_thread = _threads[id];
-	state_t state = cur_thread.getState();
-	if (state == BLOCKED)
-	{
-		if (!cur_thread.isSyncing())
-		{
-			//pushToReadyList(id);
-			assert(idIsValid(id));
-			_readyList.push(_threads[id].getNode());
-		}
-		//needed to make sure that this thread is not synced
-		//added "_waitingToSyncWith" field
-
-	}
-	if (state == RUNNING || state == READY)
-	{
-		//has no effect according to pdf.
 	}
 	return 0;
 }
 
 /**
-	 * assert state is running
-	 * sync thread, add it to sync list of id and schedule
-	 * handle errors as in pdf
-	 * @return 0, on success. -1 on error
-	 */
+ * if state is blocked add to ready and resume thread.
+ * handle errors as in pdf
+ * @return 0, on success. -1 on error
+ */
+int ThreadManager::resume(int id)
+{
+	if (id >= _threads.size() || id < 0 || _threads[id].getState() == NOT_SET)
+	{
+		std::cout << "Attempting to resume non-existent id" << id << std::endl;
+		return -1;
+	}
+	if (_threads[id].getState() == BLOCKED)
+	{
+		if (!_threads[id].isSynced())
+		{
+			_readyList.push(_threads[id].getNode());
+		}
+	}
+	return 0;
+}
+
+/**
+ * assert state is running
+ * sync thread, add it to sync list of id and schedule
+ * handle errors as in pdf
+ * @return 0, on success. -1 on error
+ */
 int ThreadManager::sync(int id)
 {
-	if (!idIsValid(id))
+	if (id >= _threads.size() || id < 0 || _threads[id].getState() == NOT_SET)
 	{
-		//todo add error: "Attempting to sync non-existent id"
+		std::cout << "Attempting to sync non-existent id" << id << std::endl;
 		return -1;
 	}
 	if (_runningId == 0)
 	{
-		//todo add error: "main thread attempts to sync with another thread
+		std::cout << "main thread attempts to sync with another thread" << id << std::endl;
 		return -1;
 	}
 	if (id == _runningId)
 	{
-		//todo add error: "Attampting to sync with self"
+		std::cout << "Attempting to sync with self" << id << std::endl;
 		return -1;
 	}
 	Thread runningThread = _threads[_runningId];
 	Thread threadToSyncTo = _threads[id];
-	assert(runningThread.getState() == RUNNING);
-	runningThread.sync(id);
-	threadToSyncTo.addToSyncList(runningThread.getNode());
-	runningThread.block();
+	assert(_threads[_runningId].getState() == RUNNING);
+	_threads[_runningId].sync(id);
+	_threads[id].addToSyncList(runningThread.getNode());
 	schedule();
-
-
 	return 0;
 }
 
@@ -187,6 +175,52 @@ int ThreadManager::sync(int id)
  */
 int ThreadManager::terminate(int id)
 {
+	if (id >= _threads.size() || id < 0 || _threads[id].getState() == NOT_SET)
+	{
+		std::cout << "Attempting to terminate non-existent id" << id << std::endl;
+		return -1;
+	}
+	if (id == 0)
+	{
+		std::cout << "terminate main thread" << std::endl;
+		// TODO release memory first
+		exit(0);
+	}
+	if (_threads[id].getState() == READY)
+	{
+		_readyList.remove(_threads[id].getNode());
+	}
+	if (_threads[id].isSynced())
+	{
+		int tmpId = _threads[id].getSyncedTo();
+		assert(tmpId < _threads.size() || tmpId >= 0 && _threads[tmpId].getState() == NOT_SET);
+		_threads[tmpId].getSyncList().remove(_threads[id].getNode());
+	}
+	std::cout << "terminate thread " << id << std::endl;
+	_readyList.concat(_threads[id].getSyncList());
+	_threads[id].terminate();
+	_idHandler.recycleId(id);
 	return 0;
 }
 
+/**
+ * prints exisiting threads states and ready list
+ */
+void ThreadManager::print()
+{
+	std::cout << "total quanntums " << _totalQuantums << std::endl;
+	std::cout << "running " << _runningId << std::endl;
+	for (int i=0;i<_threads.size();++i)
+	{
+		if (_threads[i].getState() != NOT_SET)
+		{
+			std::cout << "thread " << i << "is" << _threads[i].getState();
+			if (_threads[i].isSynced())
+			{
+				std::cout << " and synced to" << _threads[i].getSyncedTo();
+			}
+			std::cout << std::endl;
+		}
+	}
+	_readyList.print();
+}

@@ -6,16 +6,26 @@
 #define T2_THREADMANAGER_H
 
 #include "Thread.h"
-#include "ID_handler.h"
+#include "IdHandler.h"
 #include <vector>
-using namespace std;
+#include <signal.h>
+#include <sys/time.h>
+#include <setjmp.h>
+
 class ThreadManager
 {
 public:
 	/**
-	 * makes data structures adds main thread and sets timer like in bla.cpp
+	 * dosn't do much
 	 */
 	ThreadManager(time_t quantumLength);
+
+	/**
+	 * makes data structures adds main thread and sets timer
+	 */
+	int setup(int quantumLength);
+
+	/**
 
 	/**
 	 * adds thread to vector and adds it's node to ready list
@@ -28,7 +38,7 @@ public:
 	 * stops running thread moves it to end of ready list and saves.
 	 * takes thread from top of ready list and runs it.
 	 */
-	void schedule();
+	void schedule(int sig);
 
 	/**
 	 * if state is ready then block and remove from ready list, if running block and schedule.
@@ -66,15 +76,18 @@ public:
 	//frees everything. DON'T WRITE THIS YET
 	~ThreadManager();
 
+	/**
+	 * prints exisiting threads states and ready list
+	 */
+	void print();
+
 private:
 	int _runningId;
-	vector<Thread> _threads;
+	std::vector<Thread> _threads;
 	quant_time_t _totalQuantums;
-	ID_handler _idHandler;// not realy int. put what you wrote
+	IdHandler _idHandler;
 	ThreadList _readyList;
-
-	void pushToReadyList(int tid);
-
-	bool idIsValid(int tid);
+	struct sigaction _sa;
+	struct itimerval _timer;
 };
 #endif //T2_THREADMANAGER_H

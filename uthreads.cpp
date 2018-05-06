@@ -1,19 +1,7 @@
 //
 // Implementations for uthreads.h functions
 //
-
-/**Defs and consts**/
-#define MAIN_THREAD 0
-#define READY 100
-#define RUNNING 200
-#define BLOCKED 300
-#define NONEXISTENT 400
-#define SYNCED 500
-
-/**Data structures**/
-
-using namespace std;
-
+#include "ThreadManager.h"
 #include <vector>
 #include <queue>
 

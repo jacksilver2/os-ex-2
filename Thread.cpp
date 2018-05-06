@@ -54,16 +54,32 @@ address_t translate_address(address_t addr)
 
 #endif
 
+/**
+ * create new thread
+ * @param id the id the thread should have
+ * @param f pointer to the function the thread should run
+ */
+Thread::Thread(int id, void (*f)(void))
+{
+	setThread(id, f);
+}
+
+/**
+ * sets an empty thread (eather new or terminated)
+ * @param id the id the thread should have
+ * @param f pointer to the function the thread should run
+ * @return
+ */
 void Thread::setThread(int id, void (*f)(void))
 {
 	address_t sp, pc;
 	_id = id;
+    _syncedTo = -1;
 	_node = new ThreadNode{id, nullptr, nullptr};
-	//todo ThreadNode is a struct. Should be class?
+	_quantumsPassed = 1;
 	if (id)
 	{
 		_state = READY;
-		_quantumsPassed = 1;
 		_stackPtr = new char[STACK_SIZE];
 		sp = (address_t)_stackPtr + STACK_SIZE - sizeof(address_t);
 		pc = (address_t)f;
@@ -75,7 +91,6 @@ void Thread::setThread(int id, void (*f)(void))
 	else
 	{
 		_state = READY;
-		_quantumsPassed = 0;
 		_stackPtr = nullptr;
 		sigsetjmp(_env, 1);
 	}
@@ -92,9 +107,9 @@ void Thread::run()
 }
 
 /**
-	 * saves the threads current environment
-	 * @return -1 if just saved, otherwise if came by jump returns id of thread we came from
-	 */
+ * saves the threads current environment
+ * @return -1 if just saved, otherwise if came by jump returns id of thread we came from
+ */
 int Thread::save()
 {
 	return sigsetjmp(_env, 1) - 1;
@@ -130,9 +145,8 @@ void Thread::resume()
 void Thread::sync(int id)
 {
 	assert(_state == RUNNING);
-	_state = SYNCED; // should not exist because when
-	// thread is synced it has state = BLOCKED !!
-	_waitingToSyncWith = id;
+	_state = BLOCKED;
+	_syncedTo = id;
 }
 
 /**
@@ -150,6 +164,7 @@ void Thread::addToSyncList(ThreadNode* node)
 void Thread::terminate()
 {
 	assert(_state != NOT_SET);
+    _syncedTo = -1;
 	_state = NOT_SET;
 	_quantumsPassed = 0;
 	delete _stackPtr;
@@ -160,12 +175,18 @@ void Thread::terminate()
 	_env = nullptr;
 }
 
-bool Thread::isSyncing()
+/**
+ * @return true if sync to other thread
+*/
+bool Thread::isSynced()
 {
-	return _waitingToSyncWith > 0;
+	return _syncedTo >= 0;
 }
 
-void Thread::setSyncingFlag(bool flag)
+/**
+ * @return id of thread sync to, -1 if not synced
+*/
+int Thread::getSyncedTo()
 {
-	_waitingToSyncWith = flag;
+	return _syncedTo;
 }
